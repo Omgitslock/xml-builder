@@ -12,6 +12,16 @@ use XMLWriter;
  */
 class XmlBuilder extends XMLWriter
 {
+
+    protected $withoutSingleTags = false;
+
+    public function withoutSingleTags()
+    {
+        $this->withoutSingleTags = true;
+
+        return $this;
+    }
+    
 	/**
 	 * Create an xml tag
 	 *
@@ -20,53 +30,13 @@ class XmlBuilder extends XMLWriter
 	 * @throws \UnexpectedValueException  Invalid array for reserved tag value
 	 */
 	public function create($tag_name, array $tags)
-	{
+    {
 		$this->openMemory();
 		$this->setIndent(true);
 		$this->setIndentString('    ');
 
 		$this->startElement($tag_name);
-
-		if (isset($tags['@a'])) {
-			if (!is_array($tags['@a'])) {
-				throw new UnexpectedValueException('Expected array for `@a` key');
-			}
-
-			foreach ($tags['@a'] as $name => $value) {
-				$this->writeAttribute($name, $value);
-			}
-		}
-		else if (isset($tags['@attributes'])) {
-			if (!is_array($tags['@attributes'])) {
-				throw new UnexpectedValueException('Expected array for `@attributes` key');
-			}
-
-			foreach ($tags['@attributes'] as $name => $value) {
-				$this->writeAttribute($name, $value);
-			}
-		}
-
-		if (isset($tags['@v'])) {
-			$this->writeRaw($tags['@v']);
-		}
-		else if (isset($tags['@value'])) {
-			$this->writeRaw($tags['@value']);
-		}
-		else if (isset($tags['@t'])) {
-			if (!is_array($tags['@t'])) {
-				throw new UnexpectedValueException('Expected array for `@t` key');
-			}
-
-			$this->addTags($tags['@t']);
-		}
-		else if (isset($tags['@tags'])) {
-			if (!is_array($tags['@tags'])) {
-				throw new UnexpectedValueException('Expected array for `@tags` key');
-			}
-
-			$this->addTags($tags['@tags']);
-		}
-
+        $this->addTags($tags);
 		$this->endElement();
 
 		return $this->outputMemory();
@@ -85,30 +55,23 @@ class XmlBuilder extends XMLWriter
 				// Check if this is a sequential array
 				if ($value === array_values($value)) {
 					foreach ($value as $tags) {
-						$this->startElement($name);
-						$this->addTags($tags);
-						$this->endElement();
+                        $this->addNodesTo($name, $tags);
 					}
 				}
-				else if ($name === '@a' || $name === '@attributes') {
-					if (!is_array($tags[$name])) {
-						throw new UnexpectedValueException('Expected array for `'.$name.'` key');
-					}
-
-					foreach ($value as $attr_name => $attr_value) {
-						$this->writeAttribute($attr_name, $attr_value);
-					}
+				else if ($name === '@a') {
+					$this->addAttributes($value);
 				}
-				else if ($name === '@v' || $name === '@value') {
+				else if ($name === '@v') {
 					$this->writeRaw($value);
 				}
+				else if ($name === '@t') {
+                    $this->addTags($value);
+                }
 				else {
-					$this->startElement($name);
-					$this->addTags($value);
-					$this->endElement();
+				    $this->addNodesTo($name, $value);
 				}
 			}
-			else if ($name === '@v' || $name === '@value') {
+			else if ($name === '@v') {
 				$this->writeRaw($value);
 			}
 			else {
@@ -117,6 +80,58 @@ class XmlBuilder extends XMLWriter
 		}
 	}
 
+    protected function addAttributes(array $attributes)
+    {
+        foreach ($attributes as $name => $value) {
+            $this->writeAttribute($name, $value);
+        }
+
+        return $this;
+	}
+
+
+    protected function hasValue(array $node)
+    {
+        if(array_key_exists('@v',  $node)){
+            return true;
+        }
+
+        return false;
+	}
+
+    protected function hasNullValue(array $node)
+    {
+        if($this->hasValue($node)){
+            return $node['@v'] === null;
+        }
+        /*if($node === []){
+            return true;
+        }*/
+        return false;
+	}
+
+    protected function isSkipped($nodes)
+    {
+        if($this->hasNullValue($nodes) && $this->withoutSingleTags){
+            return true;
+        }
+
+        return false;
+	}
+
+    protected function addNodesTo($name, $nodes)
+    {
+        if($this->isSkipped($nodes)){
+            return $this;
+        }
+
+        $this->startElement($name);
+        $this->addTags($nodes);
+        $this->endElement();
+
+        return $this;
+    }
+	
 	/**
 	 * Generate a standard xml tag
 	 *
@@ -125,6 +140,10 @@ class XmlBuilder extends XMLWriter
 	 */
 	protected function addTag($tag_name, $value = null)
 	{
+	    /*if($value === null){
+	        return $this;
+        }*/
+
 		$this->startElement($tag_name);
 
 		if ($value !== null) {
