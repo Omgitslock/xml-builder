@@ -15,20 +15,25 @@ class XmlBuilder extends XMLWriter
 
     protected $withoutSingleTags = false;
 
+    /**
+     * Устанавливаем без одиночных тегов
+     *
+     * @return $this
+     */
     public function withoutSingleTags()
     {
         $this->withoutSingleTags = true;
 
         return $this;
     }
-    
-	/**
-	 * Create an xml tag
-	 *
-	 * @param string  $tag_name  XML tag name
-	 * @param array  $tags  Associative array of xml tag data
-	 * @throws \UnexpectedValueException  Invalid array for reserved tag value
-	 */
+
+    /**
+     * Create an xml tag
+     *
+     * @param string $tag_name  XML tag name
+     * @param array $tags Associative array of xml tag data
+     * @return string
+     */
 	public function create($tag_name, array $tags)
     {
 		$this->openMemory();
@@ -99,21 +104,47 @@ class XmlBuilder extends XMLWriter
         return false;
 	}
 
+    protected function hasTag(array $node)
+    {
+        if(array_key_exists('@t',  $node)){
+            return true;
+        }
+
+        return false;
+    }
+
+    protected function hasNullTag(array $node)
+    {
+        if($this->hasTag($node)){
+            return empty($node['@t']);
+        }
+
+        return false;
+    }
+
     protected function hasNullValue(array $node)
     {
         if($this->hasValue($node)){
             return $node['@v'] === null;
         }
-        /*if($node === []){
-            return true;
-        }*/
+
         return false;
 	}
 
     protected function isSkipped($nodes)
     {
-        if($this->hasNullValue($nodes) && $this->withoutSingleTags){
-            return true;
+        if($this->withoutSingleTags){
+            if($this->hasNullValue($nodes)){
+                return true;
+            }
+
+            if($this->hasNullTag($nodes)){
+                return true;
+            }
+
+            if(empty($nodes)){
+                return true;
+            }
         }
 
         return false;
@@ -140,11 +171,11 @@ class XmlBuilder extends XMLWriter
 	 */
 	protected function addTag($tag_name, $value = null)
 	{
-	    /*if($value === null){
+	    if($value === null && $this->withoutSingleTags){
 	        return $this;
-        }*/
+        }
 
-		$this->startElement($tag_name);
+        $this->startElement($tag_name);
 
 		if ($value !== null) {
 			$this->writeRaw($value);
