@@ -67,7 +67,7 @@ class XmlBuilder extends XMLWriter
 					$this->addAttributes($value);
 				}
 				else if ($name === '@v') {
-					$this->writeRaw($value);
+					$this->text($value);
 				}
 				else if ($name === '@t') {
                     $this->addTags($value);
@@ -77,7 +77,7 @@ class XmlBuilder extends XMLWriter
 				}
 			}
 			else if ($name === '@v') {
-				$this->writeRaw($value);
+				$this->text($value);
 			}
 			else {
 				$this->addTag($name, $value);
@@ -178,7 +178,7 @@ class XmlBuilder extends XMLWriter
         $this->startElement($tag_name);
 
 		if ($value !== null) {
-			$this->writeRaw($value);
+			$this->text($value);
 		}
 
 		$this->endElement();
